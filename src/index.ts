@@ -18,13 +18,13 @@ export const terraformLanguage = LRLanguage.define({
       // Highlighting
       styleTags({
         // Terraform keywords
-        Resource: t.keyword,
-        Module: t.keyword,
-        LocalKW: t.keyword,
-        LocalsKW: t.keyword,
-        Provider: t.keyword,
-        Data: t.keyword,
-        Variable: t.keyword,
+        Resource: t.className,
+        Module: t.className,
+        LocalKW: t.className,
+        LocalsKW: t.className,
+        Provider: t.className,
+        Data: t.className,
+        Variable: t.className,
 
         // Booleans
         Boolean: t.bool,

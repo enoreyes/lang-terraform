@@ -122,7 +122,7 @@ TopItem {
  * or a generic Identifier. We allow optional string labels, then braces, then body.
  */
 Block[@dynamicPrecedence=5] {
-  (Resource | Module | LocalKW | LocalsKW | Provider | Data | Variable | Identifier) !block
+  (Resource | Module | LocalsKW | LocalKW | Provider | Data | Variable | Identifier) !block
   (StringToken !block)* lbrace BlockBody rbrace
 }
 
