@@ -13,7 +13,7 @@
 @tokens {
   @precedence { 
     Boolean, 
-    Resource, Module, LocalKW, LocalsKW, Provider, Data, Variable, 
+    Resource, Module, LocalsKW, LocalKW, Provider, Data, Variable, 
     Identifier, 
     LineComment, 
     Slash, 
@@ -32,8 +32,8 @@
 
   Resource { "resource" }
   Module   { "module" }
-  LocalKW  { "local" }
   LocalsKW { "locals" }
+  LocalKW  { "local" }
   Provider { "provider" }
   Data     { "data" }
   Variable { "variable" }
