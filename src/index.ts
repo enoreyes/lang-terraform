@@ -9,13 +9,9 @@ import {
 } from "@codemirror/language"
 import {styleTags, tags as t} from "@lezer/highlight"
 
-/**
- * Create an LRLanguage for our Terraform grammar with custom props.
- */
 export const terraformLanguage = LRLanguage.define({
   parser: parser.configure({
     props: [
-      // Highlighting
       styleTags({
         // Terraform keywords
         Resource: t.className,
@@ -25,6 +21,9 @@ export const terraformLanguage = LRLanguage.define({
         Provider: t.className,
         Data: t.className,
         Variable: t.className,
+
+        // Special highlighting for block labels
+        "BlockLabel/StringToken": t.keyword,
 
         // Booleans
         Boolean: t.bool,
@@ -36,7 +35,7 @@ export const terraformLanguage = LRLanguage.define({
 
         // Strings
         StringToken: t.string,
-        InterpString: t.variableName,
+        InterpString: t.special(t.string),
         AnyChar: t.null,
 
         // Identifiers
@@ -68,19 +67,15 @@ export const terraformLanguage = LRLanguage.define({
         "]": t.squareBracket,
         "(": t.paren,
         ")": t.paren,
-
-        // Lowercase tokens that won't appear in the parse tree
-        // won't match anything here directly, but if you want
-        // them to appear in the highlighting, you could list them.
       }),
-      // Indentation
+      
       indentNodeProp.add({
         Block: delimitedIndent({closing: "}", align: false}),
         ObjectLit: delimitedIndent({closing: "}", align: false}),
         ArrayLit: delimitedIndent({closing: "]", align: false}),
         Parens: delimitedIndent({closing: ")", align: false})
       }),
-      // Folding
+      
       foldNodeProp.add({
         Block: foldInside,
         ObjectLit: foldInside,
@@ -93,10 +88,6 @@ export const terraformLanguage = LRLanguage.define({
   }
 })
 
-/**
- * Main export that combines our LRLanguage with any optional
- * extensions, such as autocompletion or linting.
- */
 export function terraform() {
   return new LanguageSupport(terraformLanguage)
 }

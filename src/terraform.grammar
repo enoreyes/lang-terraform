@@ -8,17 +8,9 @@
   or @left
 }
 
-/*
- * Program: zero or more top items
- */
 @top Program { TopItem* }
 
-/*
- * Capitalized tokens will appear in the parse tree.
- * We define "Resource", "Module", etc. as separate tokens, rather than using @specialize.
- */
 @tokens {
-  // Put them in the same precedence block to avoid overlapping issues
   @precedence { 
     Boolean, 
     Resource, Module, LocalKW, LocalsKW, Provider, Data, Variable, 
@@ -28,21 +20,16 @@
     FloatExp, FloatNoExp, Int 
   }
 
-  // Whitespace
   space { @whitespace+ }
 
-  // Single-line comments in parse tree
   LineComment { "//" ![\n]* | "#" ![\n]* }
 
-  // Block comments (skip)
   BlockComment { "/*" blockCommentRest }
   blockCommentRest { ![*] blockCommentRest | "*" blockCommentAfterStar }
   blockCommentAfterStar { "/" | "*" blockCommentAfterStar | ![/*] blockCommentRest }
 
-  // Terraforms booleans
   Boolean { "true" | "false" | "null" }
 
-  // Distinct tokens for well-known Terraform keywords
   Resource { "resource" }
   Module   { "module" }
   LocalKW  { "local" }
@@ -51,25 +38,20 @@
   Data     { "data" }
   Variable { "variable" }
 
-  // Numeric forms (non-overlapping)
   FloatExp { @digit+ ("." @digit+)? }
   FloatNoExp { @digit+ "." @digit+ }
   Int { @digit+ }
 
-  // Slash token, might collide with lineComment
   Slash { "/" }
 
-  // Single underscores
   AnyChar { "_" }
 
-  // String tokens appear in parse tree
   StringToken {
     '"'
     ( "\\" AnyChar | !["\\] )*
     '"'
   }
 
-  // Operators used as separate parse tree nodes
   EqualEqual { "==" }
   NotEqual   { "!=" }
   GreaterEq  { ">=" }
@@ -85,7 +67,6 @@
   Mod        { "%" }
   Bang       { "!" }
 
-  // Lowercase => won't appear in parse tree
   eq { "=" }
   lbrace { "{" }
   rbrace { "}" }
@@ -94,35 +75,25 @@
   lparen { "\\(" }
   rparen { "\\)" }
 
-  /*
-   * Identifier allows dot so references like var.environment parse as one token
-   */
   Identifier {
     $[a-zA-Z_] $[a-zA-Z0-9_.-]*
   }
 }
 
-/*
- * Skip whitespace + block comments (they do not appear in the parse tree)
- */
 @skip {
   space |
   BlockComment
 }
 
-/*
- * The top-level parse — can be a Block, an attribute, or a line comment
- */
 TopItem {
   Block | AttributeStatement | LineComment
 }
 
-/*
- * A block can start with Resource, Module, Provider, Data, Variable, etc.
- * or a generic Identifier. We allow optional string labels, then braces, then body.
- */
 Block[@dynamicPrecedence=5] {
-  (Resource | Module | LocalsKW | LocalKW | Provider | Data | Variable | Identifier) !block
+  BlockLabel { 
+    (Resource | Module | Provider | Data | Variable) !block StringToken+
+  } |
+  (LocalsKW | LocalKW | Identifier) !block
   (StringToken !block)* lbrace BlockBody rbrace
 }
 
@@ -130,17 +101,10 @@ BlockBody {
   (AttributeStatement | Block | LineComment)*
 }
 
-/*
- * "identifier = expression" form for attributes
- * eq is lowercase => won't appear in parse tree
- */
 AttributeStatement {
   Identifier eq Expression
 }
 
-/*
- * Expressions appear in many places (attributes, object items, etc.)
- */
 Expression {
   Literal |
   UnaryExpression |
@@ -151,9 +115,6 @@ Expression {
   Identifier
 }
 
-/*
- * Basic literal forms: boolean, numeric, strings
- */
 Literal {
   Boolean |
   FloatExp |
@@ -162,31 +123,19 @@ Literal {
   String
 }
 
-/*
- * A string can be a raw token or an interpolation
- */
 String {
   StringToken |
   InterpString
 }
 
-/*
- * Terraform-style interpolation: "${ ... }"
- */
 InterpString {
   "${" Expression "}"
 }
 
-/*
- * Parenthesized expression: ( expr )
- */
 Parens {
   lparen Expression rparen
 }
 
-/*
- * Object literal: { key = value, ... }
- */
 ObjectLit {
   lbrace (ObjectItem (Comma ObjectItem)*)? rbrace
 }
@@ -195,39 +144,22 @@ ObjectItem {
   (Identifier | StringToken) (eq | Arrow) Expression
 }
 
-/*
- * Array literal: [ expr, expr, ... ]
- */
 ArrayLit {
   lbracket (Expression (Comma Expression)*)? rbracket
 }
 
-/*
- * Comma is lowercase => no parse tree node
- */
 Comma { "," }
 
-/*
- * Unary operators: !, -
- */
 UnaryExpression {
   Bang Expression |
   Minus Expression
 }
 
-/*
- * Binary expressions with precedence
- */
 BinaryExpression {
-  Expression !times (Star | Slash | Mod) Expression
-  |
-  Expression !plus (Plus | Minus) Expression
-  |
-  Expression !rel (GreaterEq | LessEq | Greater | Less) Expression
-  |
-  Expression !equal (EqualEqual | NotEqual) Expression
-  |
-  Expression !and AndAnd Expression
-  |
+  Expression !times (Star | Slash | Mod) Expression |
+  Expression !plus (Plus | Minus) Expression |
+  Expression !rel (GreaterEq | LessEq | Greater | Less) Expression |
+  Expression !equal (EqualEqual | NotEqual) Expression |
+  Expression !and AndAnd Expression |
   Expression !or OrOr Expression
 }
