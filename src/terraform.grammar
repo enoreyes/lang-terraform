@@ -1,0 +1,213 @@
+@precedence {
+  block @cut,
+  times @left,
+  plus @left,
+  rel @left,
+  equal @left,
+  and @left,
+  or @left
+}
+
+/*
+ * Program: zero or more top items
+ */
+@top Program { TopItem* }
+
+/*
+ * We define lineComment with a capital letter to be included in parse tree,
+ * but blockComment as lowercase => skip item.
+ */
+@tokens {
+  // Explicit precedence among tokens that can collide:
+  @precedence { Boolean, Identifier, LineComment, Slash, FloatExp, FloatNoExp, Int }
+
+  // Whitespace
+  space { @whitespace+ }
+
+  LineComment { "//" ![\n]* | "#" ![\n]* }
+
+  BlockComment { "/*" blockCommentRest }
+  blockCommentRest { ![*] blockCommentRest | "*" blockCommentAfterStar }
+  blockCommentAfterStar { "/" | "*" blockCommentAfterStar | ![/*] blockCommentRest }
+
+  // Booleans
+  Boolean { "true" | "false" | "null" }
+
+  // Numeric forms (non-overlapping):
+  FloatExp { @digit+ ("." @digit+)?}
+  FloatNoExp { @digit+ "." @digit+ }
+  Int { @digit+ }
+
+  // Slash token, which might conflict with lineComment
+  Slash { "/" }
+
+  // Single underscores (if needed in your grammar)
+  AnyChar { "_" }
+
+  // String token (capital => appears in parse tree)
+  StringToken {
+    '"'
+    ( "\\" AnyChar | !["\\] )*
+    '"'
+  }
+
+  // Operators used as separate nodes in parse tree
+  EqualEqual { "==" }
+  NotEqual   { "!=" }
+  GreaterEq  { ">=" }
+  LessEq     { "<=" }
+  AndAnd     { "&&" }
+  OrOr       { "\\|\\|" }
+  Arrow      { "=>" }
+  Greater    { ">" }
+  Less       { "<" }
+  Plus       { "\\+" }
+  Minus      { "-" }
+  Star       { "\\*" }
+  Mod        { "%" }
+  Bang       { "!" }
+
+  // The lowercase => won't appear as parse tree nodes
+  eq { "=" }
+  lbrace { "{" }
+  rbrace { "}" }
+  lbracket { "\\[" }
+  rbracket { "\\]" }
+  lparen { "\\(" }
+  rparen { "\\)" }
+
+  // Identifiers appear in parse tree
+  Identifier {
+    $[a-zA-Z_] $[a-zA-Z0-9_-]*
+  }
+}
+
+/*
+ * Skip whitespace + block comments (they do not appear in the parse tree)
+ */
+@skip {
+  space |
+  BlockComment
+}
+
+/*
+ * The top-level parse — can be a Block, an attribute, or a line comment
+ */
+TopItem {
+  Block | AttributeStatement | LineComment
+}
+
+/*
+ * A block is an identifier + optional string labels + braces + block body
+ * "block @dynamicPrecedence=5" ensures it doesn't get shifted as Expression
+ */
+Block[@dynamicPrecedence=5] {
+  Identifier !block (StringToken !block)* lbrace BlockBody rbrace
+}
+
+BlockBody {
+  (AttributeStatement | Block | LineComment)*
+}
+
+/*
+ * "identifier = expression" form for attributes
+ * Note: eq is lowercase => won't appear in parse tree
+ */
+AttributeStatement {
+  Identifier eq Expression
+}
+
+/*
+ * Expressions appear in many places (attributes, object items, etc.)
+ */
+Expression {
+  Literal |
+  UnaryExpression |
+  BinaryExpression |
+  Parens |
+  ObjectLit |
+  ArrayLit |
+  Identifier
+}
+
+/*
+ * Basic literal forms: boolean, numeric, strings
+ */
+Literal {
+  Boolean |
+  FloatExp |
+  FloatNoExp |
+  Int |
+  String
+}
+
+/*
+ * A string can be a raw token or an interpolation
+ */
+String {
+  StringToken |
+  InterpString
+}
+
+/*
+ * Terraform-style interpolation: "${ ... }"
+ */
+InterpString {
+  "${" Expression "}"
+}
+
+/*
+ * Parenthesized expression: ( expr )
+ */
+Parens {
+  lparen Expression rparen
+}
+
+/*
+ * Object literal: { key = value, ... }
+ * Use lowercase brace tokens => no parse nodes for braces
+ */
+ObjectLit {
+  lbrace (ObjectItem (Comma ObjectItem)*)? rbrace
+}
+
+ObjectItem {
+  (Identifier | StringToken) (eq | Arrow) Expression
+}
+
+/*
+ * Array literal: [ expr, expr, ... ]
+ */
+ArrayLit {
+  lbracket (Expression (Comma Expression)*)? rbracket
+}
+
+/*
+ * Comma is lowercase to avoid parse tree nodes for commas
+ */
+Comma { "," }
+
+/*
+ * Unary operators: !, -
+ */
+UnaryExpression {
+  Bang Expression |
+  Minus Expression
+}
+
+/*
+ * Binary expressions with precedence
+ */
+BinaryExpression {
+  Expression !times (Star | Slash | Mod) Expression
+  |
+  Expression !plus (Plus | Minus) Expression
+  |
+  Expression !rel (GreaterEq | LessEq | Greater | Less) Expression
+  |
+  Expression !equal (EqualEqual | NotEqual) Expression
+  |
+  Expression !and AndAnd Expression
+  |
+  Expression !or OrOr Expression
+}

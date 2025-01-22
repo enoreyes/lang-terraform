@@ -1,41 +1,205 @@
-# Booleans
-
-#t
-#f
+some_bool = true
 
 ==>
 
-Program(Boolean, Boolean)
+Program(
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(Boolean)
+    )
+  )
+)
 
-# Identifiers
-
-one
-Two_Three
-
-==>
-
-Program(Identifier, Identifier)
-
-# Strings
-
-"hello"
-"one\"\\two"
+int_var = 123
+float_var = 4.56
+exp_var = 7.8
 
 ==>
 
-Program(String, String)
+Program(
+  TopItem(
+    AttributeStatement(Identifier, Expression(Int))
+  ),
+  TopItem(
+    AttributeStatement(Identifier, Expression(FloatNoExp))
+  ),
+  TopItem(
+    AttributeStatement(Identifier, Expression(FloatExp))
+  )
+)
 
-# Applications
-
-(begin
-  (when #t
-    (print (concat "hello" " " "world")))
-  (print "DONE"))
+str_var = "hello"
+str_interp = "${some_var}"
 
 ==>
 
-Program(Application(
-  Identifier,
-  Application(Identifier, Boolean, Application(
-    Identifier, Application(Identifier, String, String, String)))
-  Application(Identifier, String)))
+Program(
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(String)
+    )
+  ),
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(
+        String(
+          InterpString
+        )
+      )
+    )
+  )
+)
+
+resource "aws_instance" {
+  name = "example"
+  // commentary
+}
+
+==>
+
+Program(
+  TopItem(
+    Block(
+      Identifier,
+      StringToken,
+      BlockBody(
+        AttributeStatement(Identifier, Expression(String)),
+        LineComment
+      )
+    )
+  )
+)
+
+my_array = [1, 2.0, true, some_var]
+
+==>
+
+Program(
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(
+        ArrayLit(
+          Int,
+          FloatNoExp,
+          Boolean,
+          Identifier
+        )
+      )
+    )
+  )
+)
+
+obj_var = {
+  sub_key = "val"
+  another_key = 42
+}
+
+==>
+
+Program(
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(
+        ObjectLit(
+          ObjectItem(
+            Identifier,
+            Expression(String)
+          ),
+          ObjectItem(
+            Identifier,
+            Expression(Int)
+          )
+        )
+      )
+    )
+  )
+)
+
+negate_me = -some_var
+not_bool = !true
+
+==>
+
+Program(
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(
+        UnaryExpression(
+          Minus,
+          Expression(Identifier)
+        )
+      )
+    )
+  ),
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(
+        UnaryExpression(
+          Bang,
+          Expression(Boolean)
+        )
+      )
+    )
+  )
+)
+
+calc = 1 + 2 * 3
+
+==>
+
+Program(
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(
+        BinaryExpression(
+          Expression(Int),
+          Plus,
+          Expression(
+            BinaryExpression(
+              Expression(Int),
+              Star,
+              Expression(Int)
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+# Single line comment
+
+// a comment
+
+==>
+
+Program(
+  TopItem(LineComment)
+)
+
+# Block comment (skipped) + attribute
+
+/* multi
+   line
+   block
+   comment */
+example = 123
+
+==>
+
+Program(
+  TopItem(
+    AttributeStatement(
+      Identifier,
+      Expression(Int)
+    )
+  )
+)
