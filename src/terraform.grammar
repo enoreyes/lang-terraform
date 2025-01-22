@@ -14,44 +14,62 @@
 @top Program { TopItem* }
 
 /*
- * We define lineComment with a capital letter to be included in parse tree,
- * but blockComment as lowercase => skip item.
+ * Capitalized tokens will appear in the parse tree.
+ * We define "Resource", "Module", etc. as separate tokens, rather than using @specialize.
  */
 @tokens {
-  // Explicit precedence among tokens that can collide:
-  @precedence { Boolean, Identifier, LineComment, Slash, FloatExp, FloatNoExp, Int }
+  // Put them in the same precedence block to avoid overlapping issues
+  @precedence { 
+    Boolean, 
+    Resource, Module, LocalKW, LocalsKW, Provider, Data, Variable, 
+    Identifier, 
+    LineComment, 
+    Slash, 
+    FloatExp, FloatNoExp, Int 
+  }
 
   // Whitespace
   space { @whitespace+ }
 
+  // Single-line comments in parse tree
   LineComment { "//" ![\n]* | "#" ![\n]* }
 
+  // Block comments (skip)
   BlockComment { "/*" blockCommentRest }
   blockCommentRest { ![*] blockCommentRest | "*" blockCommentAfterStar }
   blockCommentAfterStar { "/" | "*" blockCommentAfterStar | ![/*] blockCommentRest }
 
-  // Booleans
+  // Terraforms booleans
   Boolean { "true" | "false" | "null" }
 
-  // Numeric forms (non-overlapping):
-  FloatExp { @digit+ ("." @digit+)?}
+  // Distinct tokens for well-known Terraform keywords
+  Resource { "resource" }
+  Module   { "module" }
+  LocalKW  { "local" }
+  LocalsKW { "locals" }
+  Provider { "provider" }
+  Data     { "data" }
+  Variable { "variable" }
+
+  // Numeric forms (non-overlapping)
+  FloatExp { @digit+ ("." @digit+)? }
   FloatNoExp { @digit+ "." @digit+ }
   Int { @digit+ }
 
-  // Slash token, which might conflict with lineComment
+  // Slash token, might collide with lineComment
   Slash { "/" }
 
-  // Single underscores (if needed in your grammar)
+  // Single underscores
   AnyChar { "_" }
 
-  // String token (capital => appears in parse tree)
+  // String tokens appear in parse tree
   StringToken {
     '"'
     ( "\\" AnyChar | !["\\] )*
     '"'
   }
 
-  // Operators used as separate nodes in parse tree
+  // Operators used as separate parse tree nodes
   EqualEqual { "==" }
   NotEqual   { "!=" }
   GreaterEq  { ">=" }
@@ -67,7 +85,7 @@
   Mod        { "%" }
   Bang       { "!" }
 
-  // The lowercase => won't appear as parse tree nodes
+  // Lowercase => won't appear in parse tree
   eq { "=" }
   lbrace { "{" }
   rbrace { "}" }
@@ -76,9 +94,11 @@
   lparen { "\\(" }
   rparen { "\\)" }
 
-  // Identifiers appear in parse tree
+  /*
+   * Identifier allows dot so references like var.environment parse as one token
+   */
   Identifier {
-    $[a-zA-Z_] $[a-zA-Z0-9_-]*
+    $[a-zA-Z_] $[a-zA-Z0-9_.-]*
   }
 }
 
@@ -98,11 +118,12 @@ TopItem {
 }
 
 /*
- * A block is an identifier + optional string labels + braces + block body
- * "block @dynamicPrecedence=5" ensures it doesn't get shifted as Expression
+ * A block can start with Resource, Module, Provider, Data, Variable, etc.
+ * or a generic Identifier. We allow optional string labels, then braces, then body.
  */
 Block[@dynamicPrecedence=5] {
-  Identifier !block (StringToken !block)* lbrace BlockBody rbrace
+  (Resource | Module | LocalKW | LocalsKW | Provider | Data | Variable | Identifier) !block
+  (StringToken !block)* lbrace BlockBody rbrace
 }
 
 BlockBody {
@@ -111,7 +132,7 @@ BlockBody {
 
 /*
  * "identifier = expression" form for attributes
- * Note: eq is lowercase => won't appear in parse tree
+ * eq is lowercase => won't appear in parse tree
  */
 AttributeStatement {
   Identifier eq Expression
@@ -165,7 +186,6 @@ Parens {
 
 /*
  * Object literal: { key = value, ... }
- * Use lowercase brace tokens => no parse nodes for braces
  */
 ObjectLit {
   lbrace (ObjectItem (Comma ObjectItem)*)? rbrace
@@ -183,7 +203,7 @@ ArrayLit {
 }
 
 /*
- * Comma is lowercase to avoid parse tree nodes for commas
+ * Comma is lowercase => no parse tree node
  */
 Comma { "," }
 

@@ -10,20 +10,39 @@ import {
 import {styleTags, tags as t} from "@lezer/highlight"
 
 /**
- * Create a language definition using the Terraform grammar.
+ * Create an LRLanguage for our Terraform grammar with custom props.
  */
-export const TerraformLanguage = LRLanguage.define({
+export const terraformLanguage = LRLanguage.define({
   parser: parser.configure({
     props: [
+      // Highlighting
       styleTags({
+        // Terraform keywords
+        Resource: t.keyword,
+        Module: t.keyword,
+        LocalKW: t.keyword,
+        LocalsKW: t.keyword,
+        Provider: t.keyword,
+        Data: t.keyword,
+        Variable: t.keyword,
+
+        // Booleans
         Boolean: t.bool,
+
+        // Numeric
         FloatExp: t.number,
         FloatNoExp: t.number,
         Int: t.number,
+
+        // Strings
         StringToken: t.string,
+        InterpString: t.variableName,
+        AnyChar: t.null,
+
+        // Identifiers
         Identifier: t.variableName,
 
-        // Operators, punctuation
+        // Operators
         EqualEqual: t.operatorKeyword,
         NotEqual: t.operatorKeyword,
         GreaterEq: t.operatorKeyword,
@@ -36,27 +55,32 @@ export const TerraformLanguage = LRLanguage.define({
         Plus: t.operatorKeyword,
         Minus: t.operatorKeyword,
         Star: t.operatorKeyword,
-        Slash: t.operatorKeyword,
         Mod: t.operatorKeyword,
         Bang: t.operatorKeyword,
-        Eq: t.operatorKeyword,
-
-        LBrace: t.brace,
-        RBrace: t.brace,
-        LBracket: t.squareBracket,
-        RBracket: t.squareBracket,
-        LParen: t.paren,
-        RParen: t.paren,
-
+        
+        // Comments
         LineComment: t.lineComment,
-        BlockComment: t.blockComment
+
+        // Braces, brackets, parens
+        "{": t.brace,
+        "}": t.brace,
+        "[": t.squareBracket,
+        "]": t.squareBracket,
+        "(": t.paren,
+        ")": t.paren,
+
+        // Lowercase tokens that won't appear in the parse tree
+        // won't match anything here directly, but if you want
+        // them to appear in the highlighting, you could list them.
       }),
+      // Indentation
       indentNodeProp.add({
         Block: delimitedIndent({closing: "}", align: false}),
         ObjectLit: delimitedIndent({closing: "}", align: false}),
         ArrayLit: delimitedIndent({closing: "]", align: false}),
         Parens: delimitedIndent({closing: ")", align: false})
       }),
+      // Folding
       foldNodeProp.add({
         Block: foldInside,
         ObjectLit: foldInside,
@@ -70,9 +94,9 @@ export const TerraformLanguage = LRLanguage.define({
 })
 
 /**
- * Export a helper function that returns
- * a LanguageSupport instance for Terraform.
+ * Main export that combines our LRLanguage with any optional
+ * extensions, such as autocompletion or linting.
  */
 export function terraform() {
-  return new LanguageSupport(TerraformLanguage)
+  return new LanguageSupport(terraformLanguage)
 }
